@@ -1,0 +1,72 @@
+# Gradle files
+.gradle/
+build/
+**/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+out/
+
+# Kotlin specific
+*.kotlin_module
+
+# Android specific
+captures/
+.externalNativeBuild/
+.cxx/
+*.log
+
+# Android Studio captures
+*.hprof
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*~.nib
+*.class
+
+# Signing files (if any)
+*.jks
+*.keystore
+
+# JetBrains specific files
+.idea/
+*.iml
+
+# Crashlytics files
+crashlytics-build.properties
+
+# Generated files from Jetifier
+jetified-*
+
+# Google Services (if generated)
+google-services.json
+
+# Firebase Crashlytics
+firebase-debug.log
+
+# Android Studio Profiler
+*.hprof
+
+# Others
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
