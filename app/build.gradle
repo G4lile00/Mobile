@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    namespace 'com.example.aula' // 👈 ADICIONE ESTA LINHA
     compileSdk 32
 
     defaultConfig {
