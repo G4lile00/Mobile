@@ -1,21 +1,22 @@
 package com.example.aula
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,178 +24,204 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.aula.ui.theme.AulaTheme
-import android.widget.Toast
-import androidx.compose.material.Icon
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
+import com.example.aula.recipes.*
+import com.example.aula.ui.theme.AulaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val database = ReceitaDatabase.getDatabase(this)
+        val repository = ReceitaRepository(database.receitaDao())
         setContent {
             AulaTheme {
                 val navController = rememberNavController()
+                val receitaViewModel: ReceitaViewModel = viewModel(
+                    factory = ReceitaViewModelFactory(repository)
+                )
 
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
-                        HomeScreen(navController)
+                        HomeScreen(navController, receitaViewModel)
                     }
-
                     composable("details/{id}") { backStackEntry ->
-                        val userId = backStackEntry.arguments?.getString("id")
-                        UserDetailsScreen(userId?.toIntOrNull() ?: 0)
+                        val recipeId = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
+                        RecipeDetailsScreen(recipeId, receitaViewModel)
                     }
                 }
             }
         }
+    }
 }
 
+// Data class que representa o item visual
+data class RecipeUI(
+    val id: Int,
+    val name: String,
+    val description: String,
+    @DrawableRes val image: Int
+)
 
-
-
-    data class User(
-        val id: Int,
-        val name: String,
-        val lastTimeOnline: String,
-        @DrawableRes val image: Int
-    )
-    val sampleUsers = listOf(
-        User(12, "João", "Online agora", R.drawable.moon),
-        User(8, "Maria", "Há 5 minutos", R.drawable.moon),
-        User(3, "Carlos", "Ontem", R.drawable.moon),
-        User(5, "Ana", "Há 2 horas", R.drawable.moon),
-        User(7, "Luiz", "Há 4 horas", R.drawable.moon),
-        User(10, "Beatriz", "Ontem", R.drawable.moon),
-        User(15, "Eduardo", "Há 1 dia", R.drawable.moon),
-        User(20, "Raquel", "Há 3 dias", R.drawable.ic_launcher_foreground),
-
-    )
-    fun getUsers(): List<User>{
-        return sampleUsers;
+// Mapear receitas do banco para RecipeUI (com imagens locais)
+fun mapReceitaToRecipeUI(receita: Receita): RecipeUI {
+    val image = when (receita.nome.lowercase()) {
+        "frango grelhado com arroz" -> R.drawable.frango
+        "macarrão à bolonhesa" -> R.drawable.frango
+        "salada colorida" -> R.drawable.frango
+        "feijoada" -> R.drawable.frango
+        "peixe assado" -> R.drawable.frango
+        else -> R.drawable.moon
     }
-    fun getUser(id: Int): MainActivity.User {
+    return RecipeUI(
+        id = receita.id,
+        name = receita.nome,
+        description = "${receita.ingredientes}\n${receita.modoPreparo}",
+        image = image
+    )
+}
 
-        return sampleUsers.find { it.id == id } ?: User(0,"Undef", "Undef", R.drawable.moon)
-    }
+@Composable
+fun HomeScreen(navController: NavController, viewModel: ReceitaViewModel) {
+    var receitas by remember { mutableStateOf<List<Receita>>(emptyList()) }
 
-
-
-    @Composable
-    fun HomeScreen(navController: NavController) {
-
-
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color(240, 240, 240),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White)
-            ) {
-                Column {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "Usuários",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        },
-                        backgroundColor = Color(30, 136, 229),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    CardRow(users = getUsers(), navController = navController)
-                }
-            }
+    // Observe LiveData manualmente
+    DisposableEffect(viewModel.todasReceitas) {
+        val observer = Observer<List<Receita>> { lista ->
+            receitas = lista
+        }
+        viewModel.todasReceitas.observeForever(observer)
+        onDispose {
+            viewModel.todasReceitas.removeObserver(observer)
         }
     }
 
-    @Composable
-    fun CardRow(users: List<User>, navController: NavController) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            users.forEach { user ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+    val recipesUI = receitas.map { mapReceitaToRecipeUI(it) }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFFFBEFD3)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.White)
+        ) {
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Receitas",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    },
+                    backgroundColor = Color(0xFF9E77FF),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 4.dp)
-                        .clickable {
-
-                            navController.navigate("details/${user.id}")
-                        }
-                ) {
-                    Image(
-                        painter = painterResource(id = user.image),
-                        contentDescription = "Imagem do usuário ${user.name}",
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Column {
-                        Text(text = user.name, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = user.lastTimeOnline,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowRight,
-                        contentDescription = "Ir para detalhes",
-                        tint = Color.Gray
-                    )
-                }
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                RecipeList(recipes = recipesUI, navController = navController)
             }
         }
     }
-
-
-    @Composable
-    fun UserDetailsScreen(userId: Int) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(240, 240, 240)) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                val user: MainActivity.User = getUser(userId) ;
-                Text(text = "Detalhes do usuário", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(text = "Nome: ${user.name}", fontSize = 18.sp)
-                Text(text = "Ultimo Login: ${user.lastTimeOnline}", fontSize = 14.sp)
-            }
-        }
-    }
-
 }
 
+@Composable
+fun RecipeList(recipes: List<RecipeUI>, navController: NavController) {
+    Column(modifier = Modifier.padding(8.dp)) {
+        recipes.forEach { recipe ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
+                    .clickable { navController.navigate("details/${recipe.id}") }
+            ) {
+                Image(
+                    painter = painterResource(id = recipe.image),
+                    contentDescription = "Imagem do prato ${recipe.name}",
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(text = recipe.name, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = recipe.description,
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        maxLines = 2
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "Ir para detalhes",
+                    tint = Color.Gray
+                )
+            }
+        }
+    }
+}
 
+@Composable
+fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
+    var receita by remember { mutableStateOf<Receita?>(null) }
 
+    DisposableEffect(recipeId) {
+        val observer = Observer<Receita> { r ->
+            receita = r
+        }
+        viewModel.buscarPorId(recipeId).observeForever(observer)
+        onDispose {
+            viewModel.buscarPorId(recipeId).removeObserver(observer)
+        }
+    }
+
+    val recipeUI = receita?.let { mapReceitaToRecipeUI(it) }
+        ?: RecipeUI(0, "Desconhecido", "Sem descrição disponível", R.drawable.moon)
+
+    Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFFBEFD3)) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            TopAppBar(
+                title = { Text("Detalhes da Receita", fontWeight = FontWeight.Bold, color = Color.White) },
+                backgroundColor = Color(0xFF9E77FF),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Image(
+                painter = painterResource(id = recipeUI.image),
+                contentDescription = "Imagem do prato ${recipeUI.name}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(16.dp))
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(text = recipeUI.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(text = recipeUI.description, fontSize = 16.sp, color = Color.DarkGray)
+        }
+    }
+}
