@@ -3,7 +3,6 @@ package com.example.aula
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,41 +11,42 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Icon
-import androidx.compose.material.Surface
-import androidx.compose.material.Tab
-import androidx.compose.material.TabRow
-import androidx.compose.material.TabRowDefaults
+import androidx.compose.material.*
 import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material.Text
-import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.aula.recipes.*
+import com.example.aula.recipes.data.ReceitaDatabase
+import com.example.aula.recipes.model.Receita
+import com.example.aula.recipes.repository.ReceitaRepository
+import com.example.aula.recipes.ui.RecipeUI
+import com.example.aula.recipes.ui.mapReceitaToRecipeUI
+import com.example.aula.recipes.viewmodel.ReceitaViewModel
+import com.example.aula.recipes.viewmodel.ReceitaViewModelFactory
 import com.example.aula.ui.theme.AulaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val database = ReceitaDatabase.getDatabase(this)
         val repository = ReceitaRepository(database.receitaDao())
+
         setContent {
             AulaTheme {
                 val navController = rememberNavController()
@@ -68,32 +68,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Data class que representa o item visual
-data class RecipeUI(
-    val id: Int,
-    val name: String,
-    val description: String,
-    @DrawableRes val image: Int
-)
-
-// Mapear receitas do banco para RecipeUI (com imagens locais)
-fun mapReceitaToRecipeUI(receita: Receita): RecipeUI {
-    val image = when (receita.id) {
-        1 -> R.drawable.frango          // Frango Grelhado com Arroz
-        2 -> R.drawable.macarrao       // Macarrão à Bolonhesa
-        3 -> R.drawable.hamburger       // Hambúrguer Fitness
-        4 -> R.drawable.feijoada        // Feijoada
-        5 -> R.drawable.pastel          // Pastel Assado
-        6 -> R.drawable.fritas         // Batatas Fritas
-        else -> R.drawable.moon
-    }
-    return RecipeUI(
-        id = receita.id,
-        name = receita.nome,
-        description = "${receita.ingredientes}\n${receita.modoPreparo}",
-        image = image
-    )
-}
 
 @Composable
 fun HomeScreen(navController: NavController, viewModel: ReceitaViewModel) {
@@ -125,13 +99,7 @@ fun HomeScreen(navController: NavController, viewModel: ReceitaViewModel) {
         ) {
             Column {
                 TopAppBar(
-                    title = {
-                        Text(
-                            text = "Receitas",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    },
+                    title = { Text("Receitas", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Color.White) },
                     backgroundColor = Color(0xFF9E77FF),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -155,17 +123,29 @@ fun RecipeList(recipes: List<RecipeUI>, navController: NavController) {
                     .padding(vertical = 8.dp, horizontal = 4.dp)
                     .clickable { navController.navigate("details/${recipe.id}") }
             ) {
-                Image(
-                    painter = painterResource(id = recipe.image),
-                    contentDescription = "Imagem do prato ${recipe.name}",
-                    modifier = Modifier
-                        .size(70.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                if (recipe.bitmapImage != null) {
+                    Image(
+                        bitmap = recipe.bitmapImage.asImageBitmap(),
+                        contentDescription = recipe.name,
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = recipe.placeholderImage),
+                        contentDescription = recipe.name,
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(text = recipe.name, fontWeight = FontWeight.Bold)
+                    Text(text = recipe.name, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     Text(
                         text = recipe.description,
                         color = Color.Gray,
@@ -199,7 +179,7 @@ fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
     }
 
     val recipeUI = receita?.let { mapReceitaToRecipeUI(it) }
-        ?: RecipeUI(0, "Desconhecido", "Sem descrição disponível", R.drawable.moon)
+        ?: RecipeUI(0, "Desconhecido", "Sem descrição disponível", bitmapImage = null)
 
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Ingredientes", "Modo de Preparo")
@@ -207,11 +187,10 @@ fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
     Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFFBEFD3)) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             TopAppBar(
-                title = { Text("Detalhes da Receita", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Detalhes da Receita", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Color.White) },
                 backgroundColor = Color(0xFF9E77FF),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -220,20 +199,33 @@ fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Image(
-                painter = painterResource(id = recipeUI.image),
-                contentDescription = "Imagem do prato ${recipeUI.name}",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp)
-            )
+            if (recipeUI.bitmapImage != null) {
+                Image(
+                    bitmap = recipeUI.bitmapImage.asImageBitmap(),
+                    contentDescription = recipeUI.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = recipeUI.placeholderImage),
+                    contentDescription = recipeUI.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(text = recipeUI.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(text = recipeUI.name, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -253,14 +245,13 @@ fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
-                        text = { Text(title, fontWeight = FontWeight.SemiBold) }
+                        text = { Text(title, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Conteúdo das abas
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -268,32 +259,26 @@ fun RecipeDetailsScreen(recipeId: Int, viewModel: ReceitaViewModel) {
                     .weight(1f)
             ) {
                 when (selectedTabIndex) {
-                    0 -> {
-                        // Ingredientes
-                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                            recipeUI.description
-                                .substringBefore("\n") // Apenas ingredientes
-                                .split(",")
-                                .forEach { ingrediente ->
-                                    Text(
-                                        text = "• ${ingrediente.trim()}",
-                                        fontSize = 16.sp,
-                                        color = Color.DarkGray,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                        }
+                    0 -> Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        recipeUI.description
+                            .substringBefore("\n")
+                            .split(",")
+                            .forEach { ingrediente ->
+                                Text(
+                                    text = "• ${ingrediente.trim()}",
+                                    fontSize = 16.sp,
+                                    color = Color.DarkGray,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
                     }
-                    1 -> {
-                        // Modo de Preparo
-                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                            Text(
-                                text = recipeUI.description.substringAfter("\n"), // Apenas preparo
-                                fontSize = 16.sp,
-                                color = Color.DarkGray,
-                                lineHeight = 22.sp
-                            )
-                        }
+                    1 -> Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text(
+                            text = recipeUI.description.substringAfter("\n"),
+                            fontSize = 16.sp,
+                            color = Color.DarkGray,
+                            lineHeight = 22.sp
+                        )
                     }
                 }
             }
