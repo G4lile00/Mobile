@@ -73,35 +73,46 @@ abstract class ReceitaDatabase : RoomDatabase() {
         }
 
         private suspend fun populateDatabase(dao: ReceitaDao) {
-            val sampleRecipes = listOf(
+            val receitas = listOf(
                 Receita(
+                    id= 1,
                     nome = "Frango Grelhado com Arroz",
-                    ingredientes = "Frango, arroz, sal, pimenta",
-                    modoPreparo = "Grelhe o frango e cozinhe o arroz. Misture e sirva."
+                    ingredientes = "Frango, arroz, sal, pimenta, azeite",
+                    modoPreparo = "Tempere o frango com sal e pimenta. Grelhe em uma frigideira com azeite até dourar. Cozinhe o arroz com um pouco de sal. Sirva o frango sobre o arroz."
                 ),
                 Receita(
+                    id = 2,
                     nome = "Macarrão à Bolonhesa",
-                    ingredientes = "Macarrão, carne moída, molho de tomate",
-                    modoPreparo = "Cozinhe o macarrão, prepare o molho com carne e tomate e sirva."
+                    ingredientes = "Macarrão, carne moída, molho de tomate, cebola, alho, azeite, sal, pimenta",
+                    modoPreparo = "Cozinhe o macarrão conforme instruções da embalagem. Refogue cebola e alho no azeite, adicione a carne moída e cozinhe até dourar. Acrescente o molho de tomate, tempere com sal e pimenta e cozinhe por 10 minutos. Misture com o macarrão e sirva."
                 ),
                 Receita(
-                    nome = "Salada Colorida",
-                    ingredientes = "Alface, tomate, cenoura, molho especial",
-                    modoPreparo = "Misture todos os ingredientes e adicione o molho."
+                    id = 3,
+                    nome = "Hambúrguer Fitness",
+                    ingredientes = "Pão integral, carne magra moída, alface, tomate, cebola, azeite, sal, pimenta",
+                    modoPreparo = "Modele a carne em hambúrgueres e tempere com sal e pimenta. Grelhe até atingir o ponto desejado. Monte o hambúrguer com o pão, alface, tomate e cebola. Sirva com acompanhamento de sua preferência."
                 ),
                 Receita(
+                    id =4,
                     nome = "Feijoada",
-                    ingredientes = "Feijão preto, carne seca, linguiça, temperos",
-                    modoPreparo = "Cozinhe o feijão com as carnes e temperos até ficar macio."
+                    ingredientes = "Feijão preto, carne seca, linguiça, bacon, cebola, alho, louro, sal, pimenta",
+                    modoPreparo = "Deixe o feijão de molho por algumas horas. Cozinhe o feijão com louro. Em outra panela, refogue cebola, alho, bacon, linguiça e carne seca. Misture tudo com o feijão e cozinhe até as carnes ficarem macias. Ajuste o tempero e sirva com arroz e couve refogada."
                 ),
                 Receita(
-                    nome = "Peixe Assado",
-                    ingredientes = "Peixe, limão, sal, legumes",
-                    modoPreparo = "Tempere o peixe, asse no forno junto com os legumes."
+                    id = 5,
+                    nome = "Pastel Assado",
+                    ingredientes = "Massa de pastel pronta, queijo, presunto, tomate, orégano, azeite",
+                    modoPreparo = "Recheie a massa de pastel com queijo, presunto e tomate. Feche e pincele azeite por cima. Asse em forno preaquecido a 180°C por 20 minutos ou até dourar. Polvilhe orégano antes de servir."
+                ),
+                Receita(
+                    id  = 6,
+                    nome = "Batatas Fritas",
+                    ingredientes = "Batatas, óleo, sal",
+                    modoPreparo = "Descasque e corte as batatas em palitos. Aqueça o óleo em fogo médio e frite as batatas até dourarem. Retire e escorra em papel toalha. Tempere com sal e sirva quente."
                 )
             )
 
-            sampleRecipes.forEach { dao.inserir(it) }
+            receitas.forEach { dao.inserir(it) }
         }
     }
 }

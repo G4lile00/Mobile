@@ -72,12 +72,13 @@ data class RecipeUI(
 
 // Mapear receitas do banco para RecipeUI (com imagens locais)
 fun mapReceitaToRecipeUI(receita: Receita): RecipeUI {
-    val image = when (receita.nome.lowercase()) {
-        "frango grelhado com arroz" -> R.drawable.frango
-        "macarrão à bolonhesa" -> R.drawable.frango
-        "salada colorida" -> R.drawable.frango
-        "feijoada" -> R.drawable.frango
-        "peixe assado" -> R.drawable.frango
+    val image = when (receita.id) {
+        1 -> R.drawable.frango          // Frango Grelhado com Arroz
+        2 -> R.drawable.macarrao       // Macarrão à Bolonhesa
+        3 -> R.drawable.hamburger       // Hambúrguer Fitness
+        4 -> R.drawable.feijoada        // Feijoada
+        5 -> R.drawable.pastel          // Pastel Assado
+        6 -> R.drawable.fritas         // Batatas Fritas
         else -> R.drawable.moon
     }
     return RecipeUI(
